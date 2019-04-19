@@ -8,6 +8,14 @@
 (defmethod link ((thread thread))
   (format nil "/forum/~a/~d" (name (parent-forum thread)) (id thread)))
 
+(defmethod link ((account account))
+  (format nil "/users/~a" (username account)))
+
+(defmethod format-time (time)
+  (multiple-value-bind (second minute hour date month year) (decode-universal-time time)
+    (format nil "~4,'0d-~2,'0d-~2,'0d ~2,'0d:~2,'0d:~2,'0d"
+            year month date hour minute second)))
+
 (defmacro standard-page ((&key title (breadcrumbs ''(("/" . "Home")))) &body body)
   `(with-html-output-to-string (*standard-output*
                                 nil :prologue t)
@@ -17,6 +25,7 @@
              ,(if title
                   `(:title (format t "~a | Hacksthenet Forum" ,title))
                   `(:title "Hacksthenet Forum"))
+             (:link :rel "stylesheet" :href "/app.css")
              (:body
               (:header
                (:h1 "Hacksthenet Forum")
@@ -46,7 +55,7 @@
     (:h2 "Users")
     (:ul :class "users"
          (loop for account in *accounts*
-            do (htm (:li (:a :href (format nil "/users/~a" (username account))
+            do (htm (:li (:a :href (link account)
                              (princ (username account)))))))))
 
 (defun login-page ()
@@ -102,13 +111,38 @@ failure returns NIL."
 
 (defun thread-page ()
   (multiple-value-bind (thread forum) (page-thread)
-    (standard-page (:title (title thread)
-                           :breadcrumbs
-                           `(("/" . "Home")
-                             (,(link forum) . ,(name forum))
-                             (,(link thread) . ,(title thread))))
-      (:h2 (princ (title thread)))
-      (:p (princ (content thread))))))
+    (let ((author (author thread)))
+      (standard-page (:title (title thread)
+                             :breadcrumbs
+                             `(("/" . "Home")
+                               (,(link forum) . ,(name forum))
+                               (,(link thread) . ,(title thread))))
+        (:div :class "post op"
+              (:div :class "post-author"
+                    (:p :class "author-name"
+                        (if author
+                            (htm (:a :href (link author)
+                                     (princ (username author))))
+                            (princ (author-name thread)))))
+              (:div :class "post-content"
+                    (:header
+                     (:small :class "timestamp" (princ (format-time (post-time thread))))
+                     (:h2 (princ (title thread))))
+                    (:hr)
+                    (:p (princ (content thread)))))
+        (loop for post in (posts thread)
+           do (let ((post-author (author post)))
+               (htm (:div :class "post"
+                          (:div :class "post-author"
+                                (:p :class "author-name"
+                                    (if post-author
+                                        (htm (:a :href (link post-author)
+                                                 (princ (username post-author))))
+                                        (princ (author-name post)))))
+                          (:div :class "post-content"
+                                (:header
+                                 (:small :class "timestamp" (princ (format-time (post-time thread)))))
+                                (:p (princ (content post))))))))))))
 
 (defun create-forum-dispatcher ()
   (lambda (request)

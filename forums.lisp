@@ -114,6 +114,7 @@ failure returns NIL."
     (push post (posts thread))
     (id post)))
 
+
 (defun make-post* (forum-name thread-id content)
   "On success returns the post's ID. On failure returns NIL."
   (let ((thread (find-thread forum-name thread-id))
@@ -131,3 +132,6 @@ failure returns NIL."
   (find-if (lambda (post)
              (= id (id post)))
            (posts forum)))
+
+(defun author (obj)
+  (find-account (author-name obj)))
