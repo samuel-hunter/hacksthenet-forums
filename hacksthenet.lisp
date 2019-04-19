@@ -35,5 +35,8 @@ function provided the URI matches."
 
          (create-forum-dispatcher)))
 
-  (setf *acceptor* (make-instance 'easy-acceptor :port *port*))
+  (setf *acceptor* (make-instance 'easy-acceptor
+                                  :port *port*
+                                  :document-root (merge-pathnames #P"static/"
+                                                                  *default-pathname-defaults*)))
   (start *acceptor*))
