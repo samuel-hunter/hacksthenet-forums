@@ -96,9 +96,14 @@
                title content))
 
 (defun find-thread (forum-name id)
-  (find-if (lambda (thread)
-             (= id (id thread)))
-           (threads (find-forum forum-name))))
+  "On success returns two values: the thread, and its forum. On
+failure returns NIL."
+  (let ((forum (find-forum forum-name)))
+    (when forum
+      (values (find-if (lambda (thread)
+                         (= id (id thread)))
+                       (threads forum))
+              forum))))
 
 (defun make-post (thread author-name content)
   (let ((post (make-instance 'post
@@ -110,9 +115,13 @@
     (id post)))
 
 (defun make-post* (forum-name thread-id content)
-  (make-post (find-thread forum-name thread-id)
-             (username (session-account))
-             content))
+  "On success returns the post's ID. On failure returns NIL."
+  (let ((thread (find-thread forum-name thread-id))
+        (author-name (username (session-account))))
+    (when (and thread author-name)
+      (make-post (find-thread forum-name thread-id)
+                 (username (session-account))
+                 content))))
 
 (defmethod posts ((forum forum))
   (loop for thread in (threads forum)
