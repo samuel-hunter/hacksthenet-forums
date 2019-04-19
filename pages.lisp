@@ -1,6 +1,14 @@
 (in-package #:hacksthenet)
 
-(defmacro standard-page ((&key title) &body body)
+(defmethod link (obj))
+
+(defmethod link ((forum forum))
+  (format nil "/forum/~a/" (name forum)))
+
+(defmethod link ((thread thread))
+  (format nil "/forum/~a/~d" (name (parent-forum thread)) (id thread)))
+
+(defmacro standard-page ((&key title (breadcrumbs ''(("/" . "Home")))) &body body)
   `(with-html-output-to-string (*standard-output*
                                 nil :prologue t)
      (:html :lang "en"
@@ -18,14 +26,19 @@
                       (:li (:a :href "/users" "Users"))
                       (if (session-account)
                           (htm (:li (:a :href "/logout" "Logout")))
-                          (htm (:li (:a :href "/login" "Login")))))))
+                          (htm (:li (:a :href "/login" "Login"))))))
+               (:nav :class "breadcrumbs"
+                     (loop for ((link . name) . rest) on ,breadcrumbs
+                        do (htm (:a :href (princ link) (princ name))
+                                (when rest
+                                  (htm (:span " > ")))))))
               ,@body)))))
 
 (defun home-page ()
   (standard-page ()
     (:ul :class "forums"
          (loop for forum in *forums*
-            do (htm (:li (:p (:a :href (format nil "/forum/~a" (name forum)) (:strong (princ (name forum)))))
+            do (htm (:li (:p (:a :href (link forum) (:strong (princ (name forum)))))
                           (:p (:em (princ (description forum))))))))))
 
 (defun users-page ()
@@ -62,17 +75,44 @@
   (redirect "/"))
 
 (defun page-forum (&optional (request *request*))
-  (multiple-value-bind (_ results)
-      (scan-to-strings "^/forum/(\\w+)" (script-name request))
-    (declare (ignore _))
-    (find-forum (aref results 0))))
+  (multiple-value-bind (status results)
+      (scan-to-strings "^/forum/(\\w+)/" (script-name request))
+    (when status
+      (find-forum (aref results 0)))))
+
+(defun page-thread (&optional (request *request*))
+  "On success return two values: the thread, and its forum. On
+failure returns NIL."
+  (multiple-value-bind (status results)
+      (scan-to-strings "^/forum/(\\w+)/(\\d+)" (script-name request))
+    (when status
+      (find-thread (aref results 0) (parse-integer (aref results 1))))))
 
 (defun forum-page ()
   (let ((forum (page-forum)))
-    (standard-page (:title (name forum))
-      (:h2 (name forum)))))
+    (standard-page (:title (name forum)
+                           :breadcrumbs `(("/" . "Home")
+                                          (,(link forum) . ,(name forum))))
+      (:h2 (princ (name forum)))
+      (:small (princ (description forum)))
+      (:ul :class "threads"
+           (loop for thread in (threads forum)
+              do (htm (:li (:p (:a :href (link thread)
+                                   (princ (title thread)))))))))))
+
+(defun thread-page ()
+  (multiple-value-bind (thread forum) (page-thread)
+    (standard-page (:title (title thread)
+                           :breadcrumbs
+                           `(("/" . "Home")
+                             (,(link forum) . ,(name forum))
+                             (,(link thread) . ,(title thread))))
+      (:h2 (princ (title thread)))
+      (:p (princ (content thread))))))
 
 (defun create-forum-dispatcher ()
   (lambda (request)
-    (and (page-forum request)
-         'forum-page)))
+    (or (and (page-thread request)
+             'thread-page)
+        (and (page-forum request)
+             'forum-page))))
