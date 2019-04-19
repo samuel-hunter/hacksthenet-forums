@@ -28,15 +28,18 @@ function provided the URI matches."
 
   (setf *dispatch-table*
         (list
+         (create-folder-dispatcher-and-handler "/assets/" #P "static/")
          (create-simple-dispatcher "/" 'home-page)
          (create-simple-dispatcher "/users" 'users-page)
          (create-simple-dispatcher "/login" 'login-page)
          (create-simple-dispatcher "/logout" 'logout-page)
 
-         (create-forum-dispatcher)))
+         (create-regex-dispatcher "^/forum/(\\w+)/$" 'forum-page)
+         (create-regex-dispatcher "^/forum/(\\w+)/(\\d+)$" 'thread-page)
+         (create-regex-dispatcher "^/forum/(\\w+)/new$" 'new-thread-page)
+         (lambda (request) (declare (ignore request)) '404-page)))
 
   (setf *acceptor* (make-instance 'easy-acceptor
                                   :port *port*
-                                  :document-root (merge-pathnames #P"static/"
-                                                                  *default-pathname-defaults*)))
+                                  :document-root nil))
   (start *acceptor*))
