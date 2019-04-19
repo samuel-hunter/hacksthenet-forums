@@ -25,7 +25,7 @@
              ,(if title
                   `(:title (format t "~a | Hacksthenet Forum" ,title))
                   `(:title "Hacksthenet Forum"))
-             (:link :rel "stylesheet" :href "/app.css")
+             (:link :rel "stylesheet" :href "/assets/app.css")
              (:body
               (:header
                (:h1 "Hacksthenet Forum")
@@ -42,6 +42,12 @@
                                 (when rest
                                   (htm (:span " > ")))))))
               ,@body)))))
+
+(defun 404-page ()
+  (setf (return-code*) 404)
+  (standard-page (:title "404")
+    (:h2 "404 - File Not Found.")
+    (:p "The reqeusted URL " (princ (script-name*)) " was not found.")))
 
 (defun home-page ()
   (standard-page ()
@@ -99,11 +105,17 @@ failure returns NIL."
 
 (defun forum-page ()
   (let ((forum (page-forum)))
+    (unless forum
+      (return-from forum-page (404-page)))
+
     (standard-page (:title (name forum)
                            :breadcrumbs `(("/" . "Home")
                                           (,(link forum) . ,(name forum))))
       (:h2 (princ (name forum)))
       (:small (princ (description forum)))
+      (when (session-account)
+        (htm (:p (:a :href (concatenate 'string (link forum) "new")
+                  "New Thread"))))
       (:ul :class "threads"
            (loop for thread in (threads forum)
               do (htm (:li (:p (:a :href (link thread)
@@ -111,6 +123,9 @@ failure returns NIL."
 
 (defun thread-page ()
   (multiple-value-bind (thread forum) (page-thread)
+    (unless thread
+      (return-from thread-page (404-page)))
+
     (let ((author (author thread)))
       (standard-page (:title (title thread)
                              :breadcrumbs
@@ -144,9 +159,31 @@ failure returns NIL."
                                  (:small :class "timestamp" (princ (format-time (post-time thread)))))
                                 (:p (princ (content post))))))))))))
 
-(defun create-forum-dispatcher ()
-  (lambda (request)
-    (or (and (page-thread request)
-             'thread-page)
-        (and (page-forum request)
-             'forum-page))))
+(defun new-thread-page ()
+  (let ((forum (page-forum)))
+    (unless forum
+      (return-from new-thread-page (404-page)))
+
+    (unless (session-account)
+      (return-from new-thread-page (redirect "/login")))
+
+    (macrolet ((render-page (&optional error)
+               `(standard-page (:title (name forum)
+                                       :breadcrumbs
+                                       `(("/" . "Home")
+                                         (,(link forum) . ,(name forum))))
+                  (:h2 "New Thread for " (princ (name forum)))
+                  (:form :action (concatenate 'string (link forum) "new") :method "post"
+                         (:label :for "title" "Title")
+                         (:input :type "text" :id "title" :name "title")
+                         (:label :for "content" "Body")
+                         (:textarea :id "content" :name "content")
+                         (:input :type "submit")))))
+
+      (if (eq (request-method*) :post)
+          (let ((content (post-parameter "content"))
+                (title (post-parameter "title")))
+            (if (and content title)
+                (redirect (format nil "~a~d" (link forum) (make-thread* (name forum) title content)))
+                (render-page "The title or content was empty.")))
+          (render-page)))))
