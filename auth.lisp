@@ -8,7 +8,7 @@
              :initarg :password
              :accessor password)))
 
-(defparameter *accounts* ())
+(defvar *accounts* ())
 
 (defun find-account (username)
   (find-if (lambda (acc)
