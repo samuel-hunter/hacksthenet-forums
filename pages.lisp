@@ -69,7 +69,7 @@ current page."
 (defun home-page ()
   (standard-page ()
     (:ul :class "forums"
-         (loop for forum in *forums*
+         (loop for forum across *forums*
             do (htm (:li (:p (:a :href (link forum) (:strong (princ (name forum)))))
                           (:p (:em (princ (description forum))))))))))
 
@@ -205,7 +205,7 @@ failure returns NIL."
                     (:h2 (princ (name ,thread))))
                    (:hr)
                    (:p (princ (content ,thread)))))
-       (loop for post in (posts ,thread)
+       (loop for post across (posts ,thread)
           do (let ((post-author (author post)))
                (htm (:div :class "post"
                           (:div :class "post-author"

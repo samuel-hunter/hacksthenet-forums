@@ -22,6 +22,15 @@ function provided the URI matches."
     (and (string= uri (script-name request))
          handler)))
 
+(defun setup-demo ()
+  (make-forum "general" "Just general things")
+  (make-forum "tech" "Discuss technical topics here")
+  (make-forum "web-dev" "Topics on Web Development")
+
+  (add-account "admin" "emmetcortez07051")
+  (add-account "system" "alfonsogood67276")
+  (add-account "moderator" "nitanielsen67276"))
+
 (defun run ()
   (when (and *acceptor*
                (started-p *acceptor*))
