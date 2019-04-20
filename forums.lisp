@@ -21,8 +21,8 @@
   ((parent-forum :type forum
                  :initarg :parent
                  :reader parent-forum)
-   (posts :type (or cons null)
-          :initform ()
+   (posts :type (vector post)
+          :initform (make-array 0 :fill-pointer 0 :adjustable t)
           :accessor posts)
    (author-name :type string
                 :initarg :author
@@ -57,7 +57,7 @@
                    :initform 0
                    :accessor thread-counter)))
 
-(defvar *forums* ())
+(defvar *forums* (make-array 0 :fill-pointer 0 :adjustable t))
 
 
 (defun author (obj)
@@ -80,9 +80,9 @@
 
 (defun make-forum (name description)
   (unless (find-forum name)
-    (push (make-instance 'forum
-                         :name name
-                         :description description)
+    (vector-push-extend (make-instance 'forum
+                                       :name name
+                                       :description description)
           *forums*)
     name))
 
@@ -124,7 +124,7 @@ failure returns NIL."
                              :author (username author)
                              :content content
                              :id (incf (post-counter (parent-forum thread))))))
-    (push post (posts thread))
+    (vector-push-extend post (posts thread))
     (id post)))
 
 (defun make-post* (thread content)
