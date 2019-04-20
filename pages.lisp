@@ -11,10 +11,20 @@
 (defmethod link ((account account))
   (format nil "/users/~a" (username account)))
 
-(defmethod format-time (time)
+(defun format-time (time)
+  "Return the time as a formatted string"
   (multiple-value-bind (second minute hour date month year) (decode-universal-time time)
     (format nil "~4,'0d-~2,'0d-~2,'0d ~2,'0d:~2,'0d:~2,'0d"
             year month date hour minute second)))
+
+(defun count-words (string)
+  "Count the words in a given string"
+  (length (cl-ppcre:split "\\s+" string)))
+
+(defun login-link ()
+  "Return the link to the login page that will redirect to the
+current page."
+  (concatenate 'string "/login?redirect=" (script-name*)))
 
 (defmacro standard-page ((&key title (breadcrumbs ''(("/" . "Home")))) &body body)
   `(with-html-output-to-string (*standard-output*
@@ -35,7 +45,7 @@
                       (:li (:a :href "/users" "Users"))
                       (if (session-account)
                           (htm (:li (:a :href "/logout" "Logout")))
-                          (htm (:li (:a :href "/login" "Login"))))))
+                          (htm (:li (:a :href (login-link) "Login"))))))
                (:nav :class "breadcrumbs"
                      (loop for ((link . name) . rest) on ,breadcrumbs
                         do (htm (:a :href (princ link) (princ name))
@@ -69,10 +79,12 @@
                `(standard-page (:title "Login")
                   (:h2 "Login")
                   ,(when (eq type :fail)
-                     `(:strong "Bad username or password."))
+                     `(:strong "Incorrect username or password."))
                   (:form :action "/login" :method "post"
-                         (:input :type "text" :name "user" :placeholder "Username")
-                         (:input :type "password" :name "pass" :placeholder "Password")
+                         (:input :type "text" :name "user" :required t :placeholder "Username")
+                         (:input :type "password" :name "pass" :required t :placeholder "Password")
+                         (:input :type "hidden" :name "redirect" :value (or (get-parameter "redirect")
+                                                                            "/"))
                          (:input :type "submit")))))
     ;; Redirect early if already logged in
     (when (session-value 'account)
@@ -82,7 +94,8 @@
         (login-html :type :standard)
         (if (login (post-parameter "user")
                    (post-parameter "pass"))
-            (redirect "/")
+            (redirect (or (post-parameter "redirect")
+                          "/"))
             (login-html :type :fail)))))
 
 (defun logout-page ()
@@ -121,32 +134,29 @@ failure returns NIL."
               do (htm (:li (:p (:a :href (link thread)
                                    (princ (name thread)))))))))))
 
-(defun thread-page ()
-  (multiple-value-bind (thread forum) (page-thread)
-    (unless thread
-      (return-from thread-page (404-page)))
-
-    (let ((author (author thread)))
-
-      (standard-page (:title (name thread)
+(defmacro standard-thread-page (thread forum &optional error)
+  `(let ((author (author ,thread)))
+     (standard-page (:title (name ,thread)
                             :breadcrumbs
                             `(("/" . "Home")
-                              (,(link forum) . ,(name forum))
-                              (,(link thread) . ,(name thread))))
+                              (,(link ,forum) . ,(name ,forum))
+                              (,(link ,thread) . ,(name ,thread))))
+       ,(when error
+          `(:strong :class "error" ,error))
        (:div :class "post op"
              (:div :class "post-author"
                    (:p :class "author-name"
                        (if author
                            (htm (:a :href (link author)
                                     (princ (username author))))
-                           (princ (author-name thread)))))
+                           (princ (author-name ,thread)))))
              (:div :class "post-content"
                    (:header
-                    (:small :class "timestamp" (princ (format-time (post-time thread))))
-                    (:h2 (princ (name thread))))
+                    (:small :class "timestamp" (princ (format-time (post-time ,thread))))
+                    (:h2 (princ (name ,thread))))
                    (:hr)
-                   (:p (princ (content thread)))))
-       (loop for post in (posts thread)
+                   (:p (princ (content ,thread)))))
+       (loop for post in (posts ,thread)
           do (let ((post-author (author post)))
                (htm (:div :class "post"
                           (:div :class "post-author"
@@ -157,8 +167,34 @@ failure returns NIL."
                                         (princ (author-name post)))))
                           (:div :class "post-content"
                                 (:header
-                                 (:small :class "timestamp" (princ (format-time (post-time thread)))))
-                                (:p (princ (content post))))))))))))
+                                 (:small :class "timestamp" (princ (format-time (post-time post)))))
+                                (:p (princ (content post))))))))
+       (when (session-account)
+         (htm (:form :class "reply"
+                     :action (concatenate 'string (link ,thread) "/reply") :method "post"
+                     (:label :for "content" "Reply")
+                     (:textarea :required t :name "content" :id "content")
+                     (:input :type "submit")))))))
+
+(defun thread-page ()
+  (multiple-value-bind (thread forum) (page-thread)
+    (unless thread
+      (return-from thread-page (404-page)))
+    (standard-thread-page thread forum)))
+
+(defun thread-reply-page ()
+  (unless (session-account)
+    (return-from thread-reply-page (redirect (login-link))))
+
+  (multiple-value-bind (thread forum) (page-thread)
+    (unless thread
+      (return-from thread-reply-page (404-page)))
+    (let ((content (string-trim " " (post-parameter "content"))))
+      (if (>= (count-words content) 10)
+          (progn
+            (make-post* thread content)
+            (redirect (link thread)))
+          (standard-thread-page thread forum "Your reply must have at least 10 words.")))))
 
 (defun new-thread-page ()
   (let ((forum (page-forum)))
@@ -166,7 +202,7 @@ failure returns NIL."
       (return-from new-thread-page (404-page)))
 
     (unless (session-account)
-      (return-from new-thread-page (redirect "/login")))
+      (return-from new-thread-page (redirect (login-link))))
 
     (macrolet ((render-page (&optional error)
                `(standard-page (:title (name forum)
@@ -179,15 +215,16 @@ failure returns NIL."
                   (:h2 "New Thread for " (princ (name forum)))
                   (:form :action (concatenate 'string (link forum) "new") :method "post"
                          (:label :for "name" "Name")
-                         (:input :type "text" :id "name" :name "name")
+                         (:input :type "text" :id "name" :name "name" :required t)
                          (:label :for "content" "Body")
-                         (:textarea :id "content" :name "content")
+                         (:textarea :id "content" :name "content" :required t)
                          (:input :type "submit")))))
 
       (if (eq (request-method*) :post)
-          (let ((content (post-parameter "content"))
-                (name (post-parameter "name")))
-            (if (and content name)
+          (let ((content (string-trim " " (post-parameter "content")))
+                (name (string-trim " "(post-parameter "name"))))
+            (if (and (>= (length content) 20)
+                     (>= (length name) 1))
                 (redirect (format nil "~a~d" (link forum) (make-thread* (name forum) name content)))
-                (render-page "The name or content was empty.")))
+                (render-page "Either the name was empty or the content wasn't at least 20 words long.")))
           (render-page)))))

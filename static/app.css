@@ -19,3 +19,11 @@ body {
 .post-content .timestamp {
     float: right;
 }
+
+.reply {
+    margin-left: 20em;
+}
+
+form label, input {
+    display: block;
+}
