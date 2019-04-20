@@ -121,7 +121,7 @@ failure returns NIL."
 (defun make-post (thread author content)
   (let ((post (make-instance 'post
                              :parent thread
-                             :author (dirty-name author)
+                             :author (username author)
                              :content content
                              :id (incf (post-counter (parent-forum thread))))))
     (push post (posts thread))

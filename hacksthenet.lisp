@@ -36,8 +36,9 @@ function provided the URI matches."
          (create-simple-dispatcher "/logout" 'logout-page)
 
          (create-regex-dispatcher "^/forum/(\\w+)/$" 'forum-page)
-         (create-regex-dispatcher "^/forum/(\\w+)/(\\d+)$" 'thread-page)
          (create-regex-dispatcher "^/forum/(\\w+)/new$" 'new-thread-page)
+         (create-regex-dispatcher "^/forum/(\\w+)/(\\d+)$" 'thread-page)
+         (create-regex-dispatcher "^/forum/(\\w+)/(\\d+)/reply$" 'thread-reply-page)
          (lambda (request) (declare (ignore request)) '404-page)))
 
   (setf *acceptor* (make-instance 'easy-acceptor
