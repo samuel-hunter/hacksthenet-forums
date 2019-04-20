@@ -18,10 +18,12 @@
 
 (defun add-account (username password)
   (unless (find-account username)
-    (push (make-instance 'account
+    (let ((account (make-instance 'account
                          :username username
-                         :password password)
-          *accounts*)))
+                         :password password)))
+      (push account
+            *accounts*)
+      account)))
 
 (defun login (username password)
   "Log in if the username and password matches an account.
@@ -38,3 +40,7 @@ Return the account if successful; NIL otherwise."
 
 (defun session-account ()
   (session-value 'account))
+
+(defun add-account* (username password)
+  (setf (session-value 'account)
+        (add-account username password)))

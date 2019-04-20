@@ -1,0 +1,81 @@
+/* body and header */
+html {
+    background: #c8c3cc;
+}
+
+body {
+    max-width: 80em;
+    margin: auto;
+    font-family: helvetica;
+}
+
+main {
+    background: white;
+    padding: 5px;
+}
+
+#header-nav {
+    float: right;
+}
+
+#user {
+    margin-left: 10px;
+}
+
+#header-nav a {
+    margin: 3px;
+}
+
+/* main page */
+.forums, .threads {
+    list-style-type: none;
+}
+
+.forums li, .threads li {
+    padding: 3px;
+    padding-left: 20px;
+}
+
+.forums li:nth-child(odd), .threads li:nth-child(odd) {
+    background-color: #ddd;
+}
+
+/* thread page */
+.post {
+    display: grid;
+    grid-template-columns: 20em 1fr;
+    margin: 5px;
+}
+
+.post:nth-child(even) {
+    background-color: #ddd;
+}
+
+.post > .post-author {
+    grid-column: 1 / 2;
+    border-right: solid grey 1px;
+}
+
+.post > .post-content {
+    padding-left: 10px;
+    padding-right: 10px;
+    grid-column: 2 / 3;
+}
+
+.post-content .timestamp {
+    float: right;
+}
+
+.reply {
+    margin-left: 20em;
+}
+
+/* general */
+
+form label, input {
+    display: block;
+}
+
+.error {
+    color: red;
+}
