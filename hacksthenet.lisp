@@ -7,7 +7,7 @@
 (in-package #:hacksthenet)
 
 (defvar *acceptor* nil)
-(defvar *port* 80)
+(defvar *port* 8080)
 (setf (html-mode) :html5)
 
 (load "sanitize.lisp")
@@ -36,6 +36,7 @@ function provided the URI matches."
          (create-simple-dispatcher "/register" 'register-page)
          (create-simple-dispatcher "/logout" 'logout-page)
 
+         (create-regex-dispatcher "^/users/(\\w+)" 'wip-page)
          (create-regex-dispatcher "^/forum/(\\w+)/$" 'forum-page)
          (create-regex-dispatcher "^/forum/(\\w+)/new$" 'new-thread-page)
          (create-regex-dispatcher "^/forum/(\\w+)/(\\d+)$" 'thread-page)
@@ -47,21 +48,13 @@ function provided the URI matches."
                                   :document-root nil))
   (start *acceptor*))
 
-(defun setup-demo ()
+(defun start-demo ()
+  "Start the server with a few forums pre-setup for hacksthenet."
   (make-forum "general" "Just general things")
   (make-forum "tech" "Discuss technical topics here")
   (make-forum "web-dev" "Topics on Web Development")
 
   (add-account "admin" "emmetcortez07051")
   (add-account "system" "alfonsogood67276")
-  (add-account "moderator" "nitanielsen67276"))
-
-(defun start-demo ()
-  "Start the server from a non-interactive instance."
-  (setup-demo)
-  (run)
-
-  ;; Hunchentoot uses Bordeaux for multithreading support.
-  (loop for thread in (remove-if (lambda (x) (eq x (bordeaux-threads:current-thread)))
-                                 (bordeaux-threads:all-threads))
-       do (bordeaux-threads:join-thread thread)))
+  (add-account "moderator" "nitanielsen67276")
+  (run))

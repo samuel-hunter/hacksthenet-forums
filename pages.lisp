@@ -280,3 +280,8 @@ failure returns NIL."
                 (redirect (format nil "~a~d" (link forum) (make-thread* forum name content)))
                 (render-page "Either the name was empty or the content wasn't at least 5 words long.")))
           (render-page)))))
+
+(defun wip-page ()
+  (standard-page ()
+    (:h2 "Work in Progress!")
+    (:p "This page is a work-in-progress, and not completed in time for the presentation.")))
