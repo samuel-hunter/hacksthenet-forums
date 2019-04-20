@@ -9,7 +9,7 @@
            :reader author-name)
    (content :type string
             :initarg :content
-            :accessor content)
+            :accessor dirty-content)
    (time :type integer
          :initform (get-universal-time)
          :reader post-time)
@@ -29,13 +29,13 @@
                 :reader author-name)
    (content :type string
             :initarg :content
-            :accessor content)
+            :accessor dirty-content)
    (time :type integer
          :initform (get-universal-time)
          :reader post-time)
-   (title :type string
-          :initarg :title
-          :accessor title)
+   (name :type string
+          :initarg :name
+          :accessor dirty-name)
    (id :type integer
        :initarg :id
        :reader id)))
@@ -43,10 +43,10 @@
 (defclass forum ()
   ((name :type string
          :initarg :name
-         :accessor name)
+         :accessor dirty-name)
    (description :type string
                 :initarg :description
-                :accessor description)
+                :accessor dirty-description)
    (threads :type (or cons null)
             :initform ()
             :accessor threads)
@@ -58,6 +58,19 @@
                    :accessor thread-counter)))
 
 (defvar *forums* ())
+
+
+(defun author (obj)
+  (find-account (author-name obj)))
+
+(defun content (obj)
+  (sanitize (dirty-content obj)))
+
+(defun name (obj)
+  (sanitize (dirty-name obj)))
+
+(defun description (obj)
+  (sanitize (dirty-description obj)))
 
 (defun find-forum (name)
   (find-if (lambda (forum)
@@ -80,20 +93,20 @@
                              (name forum)))
                   *forums*)))
 
-(defun make-thread (forum author-name title content)
+(defun make-thread (forum author-name name content)
   (let ((thread (make-instance 'thread
                                :parent forum
                                :author author-name
                                :content content
-                               :title title
+                               :name name
                                :id (incf (thread-counter forum)))))
     (push thread (threads forum))
     (id thread)))
 
-(defun make-thread* (forum-name title content)
+(defun make-thread* (forum-name name content)
   (make-thread (find-forum forum-name)
                (username (session-account))
-               title content))
+               name content))
 
 (defun find-thread (forum-name id)
   "On success returns two values: the thread, and its forum. On
@@ -105,24 +118,18 @@ failure returns NIL."
                        (threads forum))
               forum))))
 
-(defun make-post (thread author-name content)
+(defun make-post (thread author content)
   (let ((post (make-instance 'post
                              :parent thread
-                             :author author-name
+                             :author (dirty-name author)
                              :content content
                              :id (incf (post-counter (parent-forum thread))))))
     (push post (posts thread))
     (id post)))
 
-
-(defun make-post* (forum-name thread-id content)
+(defun make-post* (thread content)
   "On success returns the post's ID. On failure returns NIL."
-  (let ((thread (find-thread forum-name thread-id))
-        (author-name (username (session-account))))
-    (when (and thread author-name)
-      (make-post (find-thread forum-name thread-id)
-                 (username (session-account))
-                 content))))
+  (make-post thread (session-account) content))
 
 (defmethod posts ((forum forum))
   (loop for thread in (threads forum)
@@ -132,6 +139,3 @@ failure returns NIL."
   (find-if (lambda (post)
              (= id (id post)))
            (posts forum)))
-
-(defun author (obj)
-  (find-account (author-name obj)))

@@ -10,6 +10,7 @@
 (defvar *port* 8080)
 (setf (html-mode) :html5)
 
+(load "sanitize.lisp")
 (load "auth.lisp")
 (load "forums.lisp")
 (load "pages.lisp")
