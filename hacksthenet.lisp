@@ -52,7 +52,7 @@ function provided the URI matches."
   "Start the server with a few forums pre-setup for hacksthenet."
   (make-forum "general" "Just general things")
   (make-forum "tech" "Discuss technical topics here")
-  (make-forum "web-dev" "Topics on Web Development")
+  (make-forum "webdev" "Topics on Web Development")
 
   (add-account "admin" "emmetcortez07051")
   (add-account "system" "alfonsogood67276")
