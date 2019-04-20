@@ -26,7 +26,8 @@
 current page."
   (concatenate 'string "/login?redirect=" (script-name*)))
 
-(defmacro standard-page ((&key title (breadcrumbs ''(("/" . "Home")))) &body body)
+(defmacro standard-page ((&key title small
+                               (breadcrumbs ''(("/" . "Home")))) &body body)
   `(with-html-output-to-string (*standard-output*
                                 nil :prologue t)
      (:html :lang "en"
@@ -38,20 +39,26 @@ current page."
              (:link :rel "stylesheet" :href "/assets/app.css")
              (:body
               (:header
-               (:h1 "Hacksthenet Forum")
-               (:nav :class "link-nav"
-                     (:ul
-                      (:li (:a :href "/" "Home"))
-                      (:li (:a :href "/users" "Users"))
-                      (if (session-account)
-                          (htm (:li (:a :href "/logout" "Logout")))
-                          (htm (:li (:a :href (login-link) "Login"))))))
-               (:nav :class "breadcrumbs"
-                     (loop for ((link . name) . rest) on ,breadcrumbs
-                        do (htm (:a :href (princ link) (princ name))
-                                (when rest
-                                  (htm (:span " > ")))))))
-              ,@body)))))
+               (:nav :id "header-nav"
+                     (:a :href "/" "Home")
+                     (:a :href "/users" "Users")
+                     (if (session-account)
+                         (htm (:a :href "/logout" "Log out")
+                              (:small :id "user" (princ (concatenate 'string
+                                                                     "Welcome, "
+                                                                     (username (session-account))))))
+                         (htm (:a :href (login-link) "Log in")
+                              (:a :href "/register" "Register"))))
+               (:h1 "Hacksthenet Forum"
+                    ,(if small
+                         `(:small ,small))))
+              (:main :id "main"
+                     (:nav :class "breadcrumbs"
+                           (loop for ((link . name) . rest) on ,breadcrumbs
+                              do (htm (:a :href (princ link) (princ name))
+                                      (when rest
+                                        (htm (:span " > "))))))
+                     ,@body))))))
 
 (defun 404-page ()
   (setf (return-code*) 404)
@@ -79,10 +86,14 @@ current page."
                `(standard-page (:title "Login")
                   (:h2 "Login")
                   ,(when (eq type :fail)
-                     `(:strong "Incorrect username or password."))
+                     `(:strong :class "error" "Incorrect username or password."))
                   (:form :action "/login" :method "post"
-                         (:input :type "text" :name "user" :required t :placeholder "Username")
-                         (:input :type "password" :name "pass" :required t :placeholder "Password")
+                         (:label :for "username" "Username")
+                         (:input :type "text" :name "username" :id "username"
+                                 :required t :placeholder "Username")
+                         (:label :for "password" "Password")
+                         (:input :type "password" :name "password" :id "password"
+                                 :required t :placeholder "Password")
                          (:input :type "hidden" :name "redirect" :value (or (get-parameter "redirect")
                                                                             "/"))
                          (:input :type "submit")))))
@@ -92,11 +103,49 @@ current page."
 
     (if (eq (request-method*) :get)
         (login-html :type :standard)
-        (if (login (post-parameter "user")
-                   (post-parameter "pass"))
+        (if (login (post-parameter "username")
+                   (post-parameter "password"))
             (redirect (or (post-parameter "redirect")
                           "/"))
             (login-html :type :fail)))))
+
+(defun register-page ()
+  (macrolet ((register-html (&optional error)
+               `(standard-page (:title "Register")
+                  (:h2 "Register")
+                  ,(when error
+                     `(:strong :class "error" ,error))
+                  (:form :action "register" :method "post"
+                         (:label :for "username" "Username")
+                         (:input :type "text" :id "username" :name "username"
+                                 :required t :placeholder "Username")
+                         (:label :for "password" "Password")
+                         (:input :type "password" :id "password" :name "password"
+                                 :required t :placeholder "Password")
+                         (:label :for "confirm" "Confirm Password")
+                         (:input :type "password" :id "confirm" :name "confirm"
+                                 :required t :placeholder "Password")
+                         (:input :type "submit")))))
+    ;; Redirect early if already logged in
+    (when (session-value 'account)
+      (return-from register-page (redirect "/")))
+
+    (if (eq (request-method*) :get)
+        (register-html)
+        (let ((username (post-parameter "username"))
+              (password (post-parameter "password"))
+              (confirm (post-parameter "confirm")))
+          (unless (and username password confirm)
+            (return-from register-page
+              (register-html "Make sure to fill in all required forms.")))
+
+          (unless (string= password confirm)
+            (return-from register-page
+              (register-html "Make sure that your password and confirmation matches.")))
+
+          (add-account* username password)
+          (redirect "/")))
+    ))
 
 (defun logout-page ()
   (setf (session-value 'account) nil)
@@ -190,11 +239,11 @@ failure returns NIL."
     (unless thread
       (return-from thread-reply-page (404-page)))
     (let ((content (string-trim " " (post-parameter "content"))))
-      (if (>= (count-words content) 10)
+      (if (>= (count-words content) 5)
           (progn
             (make-post* thread content)
             (redirect (link thread)))
-          (standard-thread-page thread forum "Your reply must have at least 10 words.")))))
+          (standard-thread-page thread forum "Your reply must have at least 5 words.")))))
 
 (defun new-thread-page ()
   (let ((forum (page-forum)))
@@ -205,7 +254,7 @@ failure returns NIL."
       (return-from new-thread-page (redirect (login-link))))
 
     (macrolet ((render-page (&optional error)
-               `(standard-page (:title (name forum)
+               `(standard-page (:title (name forum) :small (name forum)
                                        :breadcrumbs
                                        `(("/" . "Home")
                                          (,(link forum) . ,(name forum))))
@@ -223,8 +272,8 @@ failure returns NIL."
       (if (eq (request-method*) :post)
           (let ((content (string-trim " " (post-parameter "content")))
                 (name (string-trim " "(post-parameter "name"))))
-            (if (and (>= (length content) 20)
+            (if (and (>= (length content) 5)
                      (>= (length name) 1))
-                (redirect (format nil "~a~d" (link forum) (make-thread* (name forum) name content)))
-                (render-page "Either the name was empty or the content wasn't at least 20 words long.")))
+                (redirect (format nil "~a~d" (link forum) (make-thread* forum name content)))
+                (render-page "Either the name was empty or the content wasn't at least 5 words long.")))
           (render-page)))))

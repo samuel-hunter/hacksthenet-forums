@@ -103,8 +103,8 @@
     (push thread (threads forum))
     (id thread)))
 
-(defun make-thread* (forum-name name content)
-  (make-thread (find-forum forum-name)
+(defun make-thread* (forum name content)
+  (make-thread forum
                (username (session-account))
                name content))
 

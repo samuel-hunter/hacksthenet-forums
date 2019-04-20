@@ -29,10 +29,11 @@ function provided the URI matches."
 
   (setf *dispatch-table*
         (list
-         (create-folder-dispatcher-and-handler "/assets/" #P "static/")
+         (create-folder-dispatcher-and-handler "/assets/" #P "assets/")
          (create-simple-dispatcher "/" 'home-page)
          (create-simple-dispatcher "/users" 'users-page)
          (create-simple-dispatcher "/login" 'login-page)
+         (create-simple-dispatcher "/register" 'register-page)
          (create-simple-dispatcher "/logout" 'logout-page)
 
          (create-regex-dispatcher "^/forum/(\\w+)/$" 'forum-page)
