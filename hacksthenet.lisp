@@ -2,12 +2,12 @@
 
 (defpackage hacksthenet
   (:use :cl :hunchentoot :cl-who :cl-ppcre)
-  (:export :run))
+  (:export :run :start-demo))
 
 (in-package #:hacksthenet)
 
 (defvar *acceptor* nil)
-(defvar *port* 8080)
+(defvar *port* 80)
 (setf (html-mode) :html5)
 
 (load "sanitize.lisp")
@@ -21,15 +21,6 @@ function provided the URI matches."
   (lambda (request)
     (and (string= uri (script-name request))
          handler)))
-
-(defun setup-demo ()
-  (make-forum "general" "Just general things")
-  (make-forum "tech" "Discuss technical topics here")
-  (make-forum "web-dev" "Topics on Web Development")
-
-  (add-account "admin" "emmetcortez07051")
-  (add-account "system" "alfonsogood67276")
-  (add-account "moderator" "nitanielsen67276"))
 
 (defun run ()
   (when (and *acceptor*
@@ -55,3 +46,22 @@ function provided the URI matches."
                                   :port *port*
                                   :document-root nil))
   (start *acceptor*))
+
+(defun setup-demo ()
+  (make-forum "general" "Just general things")
+  (make-forum "tech" "Discuss technical topics here")
+  (make-forum "web-dev" "Topics on Web Development")
+
+  (add-account "admin" "emmetcortez07051")
+  (add-account "system" "alfonsogood67276")
+  (add-account "moderator" "nitanielsen67276"))
+
+(defun start-demo ()
+  "Start the server from a non-interactive instance."
+  (setup-demo)
+  (run)
+
+  ;; Hunchentoot uses Bordeaux for multithreading support.
+  (loop for thread in (remove-if (lambda (x) (eq x (bordeaux-threads:current-thread)))
+                                 (bordeaux-threads:all-threads))
+       do (bordeaux-threads:join-thread thread)))

@@ -58,7 +58,10 @@ current page."
                               do (htm (:a :href (princ link) (princ name))
                                       (when rest
                                         (htm (:span " > "))))))
-                     ,@body))))))
+                     ,@body)
+              (:footer
+               (:p "See this project on " (:a :href "https://github.com/samuel-hunter/hacksthenet-forums"
+                                           "GitHub!"))))))))
 
 (defun 404-page ()
   (setf (return-code*) 404)
