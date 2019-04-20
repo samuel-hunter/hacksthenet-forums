@@ -119,7 +119,7 @@ failure returns NIL."
       (:ul :class "threads"
            (loop for thread in (threads forum)
               do (htm (:li (:p (:a :href (link thread)
-                                   (princ (title thread)))))))))))
+                                   (princ (name thread)))))))))))
 
 (defun thread-page ()
   (multiple-value-bind (thread forum) (page-thread)
@@ -127,26 +127,27 @@ failure returns NIL."
       (return-from thread-page (404-page)))
 
     (let ((author (author thread)))
-      (standard-page (:title (title thread)
-                             :breadcrumbs
-                             `(("/" . "Home")
-                               (,(link forum) . ,(name forum))
-                               (,(link thread) . ,(title thread))))
-        (:div :class "post op"
-              (:div :class "post-author"
-                    (:p :class "author-name"
-                        (if author
-                            (htm (:a :href (link author)
-                                     (princ (username author))))
-                            (princ (author-name thread)))))
-              (:div :class "post-content"
-                    (:header
-                     (:small :class "timestamp" (princ (format-time (post-time thread))))
-                     (:h2 (princ (title thread))))
-                    (:hr)
-                    (:p (princ (content thread)))))
-        (loop for post in (posts thread)
-           do (let ((post-author (author post)))
+
+      (standard-page (:title (name thread)
+                            :breadcrumbs
+                            `(("/" . "Home")
+                              (,(link forum) . ,(name forum))
+                              (,(link thread) . ,(name thread))))
+       (:div :class "post op"
+             (:div :class "post-author"
+                   (:p :class "author-name"
+                       (if author
+                           (htm (:a :href (link author)
+                                    (princ (username author))))
+                           (princ (author-name thread)))))
+             (:div :class "post-content"
+                   (:header
+                    (:small :class "timestamp" (princ (format-time (post-time thread))))
+                    (:h2 (princ (name thread))))
+                   (:hr)
+                   (:p (princ (content thread)))))
+       (loop for post in (posts thread)
+          do (let ((post-author (author post)))
                (htm (:div :class "post"
                           (:div :class "post-author"
                                 (:p :class "author-name"
@@ -172,18 +173,21 @@ failure returns NIL."
                                        :breadcrumbs
                                        `(("/" . "Home")
                                          (,(link forum) . ,(name forum))))
+
+                  ,(when error
+                     `(:strong :class "error" ,error))
                   (:h2 "New Thread for " (princ (name forum)))
                   (:form :action (concatenate 'string (link forum) "new") :method "post"
-                         (:label :for "title" "Title")
-                         (:input :type "text" :id "title" :name "title")
+                         (:label :for "name" "Name")
+                         (:input :type "text" :id "name" :name "name")
                          (:label :for "content" "Body")
                          (:textarea :id "content" :name "content")
                          (:input :type "submit")))))
 
       (if (eq (request-method*) :post)
           (let ((content (post-parameter "content"))
-                (title (post-parameter "title")))
-            (if (and content title)
-                (redirect (format nil "~a~d" (link forum) (make-thread* (name forum) title content)))
-                (render-page "The title or content was empty.")))
+                (name (post-parameter "name")))
+            (if (and content name)
+                (redirect (format nil "~a~d" (link forum) (make-thread* (name forum) name content)))
+                (render-page "The name or content was empty.")))
           (render-page)))))
