@@ -22,7 +22,7 @@ Quicklisp to work properly. To run:
 ```sh
 $ cd hacksthenet-forums
 $ sbcl
-* (load "hacksthenet.lisp')
+* (load "hacksthenet.lisp")
 * (hacksthenet:start-demo)
 ```
 
